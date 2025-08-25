@@ -1,29 +1,28 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
+// app/_layout.tsx
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import React from 'react';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+GoogleSignin.configure({
+  webClientId: '479765324062-1867tpoi5aqr511g700nsiiok7c3277g.apps.googleusercontent.com',
+});
+// Importa el contexto de autenticación aquí más adelante
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
+  // TODO: Aquí iría la lógica real para verificar si el usuario está autenticado
+  const isAuthenticated = false; // Por ahora, forzamos a que no esté autenticado para mostrar el login
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack>
+      {/* Si el usuario NO está autenticado, redirige a la ruta de autenticación */}
+      {!isAuthenticated ? (
+        <Stack.Screen name="auth" options={{ headerShown: false }} /> // Ruta /app/auth/_layout.tsx
+      ) : (
+        // Si el usuario SÍ está autenticado, muestra las pestañas principales de la app
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} /> // Ruta /app/(tabs)/_layout.tsx
+      )}
+      {/* Opcional: una pantalla para "Not Found" si la tienes */}
+      {/* <Stack.Screen name="+not-found" /> */}
+    </Stack>
   );
-}
+};
