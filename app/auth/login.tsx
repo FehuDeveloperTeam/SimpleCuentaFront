@@ -1,11 +1,20 @@
 // app/auth/login.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin'; // <-- NUEVA IMPORTACIÓN
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import api from '../../lib/api'; // <--- ¡RUTA AJUSTADA!
+
+// Configuración de Google Sign-In para Android e iOS
+// Esto debe ir en un lugar global, como tu archivo principal (ej. app/_layout.tsx)
+// Pero lo incluimos aquí para que el código sea autocontenido.
+GoogleSignin.configure({
+  webClientId: 'TU_ID_DE_CLIENTE_WEB_DEL_BACKEND', // Reemplaza con tu ID de cliente web
+  iosClientId: 'TU_ID_DE_CLIENTE_DE_IOS_DE_GOOGLE', // Reemplaza con tu ID de cliente de iOS
+});
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -14,6 +23,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter(); // Inicializa el router de Expo
 
+  // Lógica de inicio de sesión con email y contraseña
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Usuario o contraseña incorrectos, intenta nuevamente');
@@ -26,9 +36,7 @@ export default function LoginScreen() {
       Alert.alert('¡Éxito!', response.data.message || 'Inicio de sesión exitoso.');
       console.log('Token JWT:', response.data.token);
       // TODO: Guardar el token de autenticación (ej. con AsyncStorage)
-      // TODO: Navegar a la pantalla principal de la aplicación
-      // Si el login es exitoso, redirigimos a la ruta principal de la aplicación, que es (tabs)
-      router.replace('/(tabs)'); // Esto navegará a la ruta /app/(tabs)/index.tsx por defecto
+      router.replace('/(tabs)');
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'response' in error) {
         const err = error as { response?: { data?: any }; message?: string };
@@ -49,99 +57,148 @@ export default function LoginScreen() {
     }
   };
 
-return (
-  <ImageBackground source={require('../../assets/imagesApp/background0.jpg')} style={styles.backgroundImage}>
-  <LinearGradient
-    colors={['transparent', 'transparent']} // Colores de tu degradado (ej. de gris claro a blanco)
-    style={styles.gradientBackground}
-  >
-    <View style={styles.container}>
-      <BlurView intensity={20} tint="light" style={styles.formCardGeneral}>
-      <View style={styles.formCard}>
-        <Text style={styles.title}>Inicia sesión</Text>
+  // Lógica de inicio de sesión con Google
+  const handleGoogleLogin = async () => {
+    try {
+      // Intenta iniciar sesión con los servicios de Google
+      await GoogleSignin.hasPlayServices();
+       const userInfo = await GoogleSignin.signIn();
+       const idToken = (userInfo as any).idToken;
+      
+      if (!idToken) {
+        throw new Error('idToken no se pudo obtener.');
+      }
+      
+      // Envía el idToken a tu backend para verificación y obtener tu token JWT
+      setLoading(true);
+      const response = await api.post('/api/auth/google', { token: idToken });
+      
+      const data = response.data;
+      console.log('Login exitoso con Google. Token del backend:', data.token);
+      Alert.alert('¡Éxito!', 'Inicio de sesión con Google exitoso.');
+      
+      // TODO: Guardar el token del backend
+      router.replace('/(tabs)');
+      
+    } catch (error) {
+      console.error('Error en Google Sign-In:', error);
 
-        <TextInput
-          style={styles.buttonInput}
-          placeholder="Correo electrónico"
-          placeholderTextColor={'#888'}
-          textAlign='right'
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+    const err = error as { code?: string };
+      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+        Alert.alert('Login cancelado', 'El usuario canceló el proceso de inicio de sesión.');
+      } else if (err.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('En progreso', 'El inicio de sesión ya está en curso. Por favor, espera.');
+      } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Google Play Services no está disponible en este dispositivo.');
+      } else {
+        Alert.alert('Error', 'Ocurrió un error inesperado al iniciar sesión con Google.');
+      }
+    }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        <View style={styles.passwordInputContainer}> {/* <-- Nuevo contenedor */}
-          <TextInput
-            style={styles.passwordInput} // <-- Estilo específico para el input dentro del contenedor
-            placeholder="Contraseña"
-            placeholderTextColor={'#888'}
-            secureTextEntry={!showPassword} // <-- Controla la visibilidad con el estado
-            value={password}
-            onChangeText={setPassword}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)} // <-- Cambia el estado al tocar
-            style={styles.eyeIcon} // <-- Estilo para el icono
-          >
-            <Ionicons
-              name={showPassword ? 'eye' : 'eye-off'} // <-- Cambia el icono según el estado
-              size={20}
-              color="gray"
-            />
-          </TouchableOpacity>
-        </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleLogin} // O handleRegister
-        disabled={loading}
+  return (
+    <ImageBackground source={require('../../assets/imagesApp/background0.jpg')} style={styles.backgroundImage}>
+      <LinearGradient
+        colors={['transparent', 'transparent']}
+        style={styles.gradientBackground}
       >
-        <Text style={styles.buttonText}>
-          {loading ? "Cargando..." : "Iniciar Sesión"}
-        </Text>
-      </TouchableOpacity>
+        <View style={styles.container}>
+          <BlurView intensity={20} tint="light" style={styles.formCardGeneral}>
+            <View style={styles.formCard}>
+              <Text style={styles.title}>Inicia sesión</Text>
+              <TextInput
+                style={styles.buttonInput}
+                placeholder="Correo electrónico"
+                placeholderTextColor={'#888'}
+                textAlign='right'
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Contraseña"
+                  placeholderTextColor={'#888'}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye' : 'eye-off'}
+                    size={20}
+                    color="gray"
+                  />
+                </TouchableOpacity>
+              </View>
 
-         <View style={styles.linksContainer}>
-          <View style={{ alignItems: 'center' }}>
-          <Text style={styles.linkText}>
-                ¿No tienes cuenta?
-              </Text>
-            <TouchableOpacity 
-              style={styles.button} 
-              onPress={() => router.replace('/auth/register' as any)}
-              disabled={loading}>
-              <Text style={styles.buttonText}>
-                {loading ? "Cargando..." : "Regístrate"}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                <Text style={styles.buttonText}>
+                  {loading ? "Cargando..." : "Iniciar Sesión"}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Contenedor para el botón de Google */}
+              <View style={styles.socialButtonsContainer}>
+                <GoogleSigninButton
+                  style={styles.googleButton}
+                  size={GoogleSigninButton.Size.Wide}
+                  color={GoogleSigninButton.Color.Dark}
+                  onPress={handleGoogleLogin}
+                  disabled={loading}
+                />
+              </View>
+
+              <View style={styles.linksContainer}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={styles.linkText}>¿No tienes cuenta?</Text>
+                  <TouchableOpacity
+                    style={styles.button}
+                    onPress={() => router.replace('/auth/register' as any)}
+                    disabled={loading}>
+                    <Text style={styles.buttonText}>
+                      {loading ? "Cargando..." : "Regístrate"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          </View>
+          </BlurView>
         </View>
-         </BlurView>
-      </View>
-    {/* Closing tag for LinearGradient */}
-  </LinearGradient>
-  </ImageBackground>
+      </LinearGradient>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-   backgroundImage: {
-    flex: 1, // Esto hace que la imagen ocupe todo el espacio disponible
-    width: '100%', // Asegura que la imagen tenga el ancho completo
-    height: '100%', // Asegura que la imagen tenga el alto completo
-    justifyContent: 'center', // Centra el contenido verticalmente
-    alignItems: 'center', // Centra el contenido horizontalmente
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
- passwordInputContainer: {
-    flexDirection: 'row', // Para que el input y el icono estén en la misma línea
+  passwordInputContainer: {
+    flexDirection: 'row',
     width: '100%',
     height: 50,
     paddingHorizontal: 15,
     marginBottom: 15,
-    backgroundColor: 'transparent', // El verde característico de Pinterest
-    borderRadius: 25, // Muy redondeado (como una píldora)
+    backgroundColor: 'transparent',
+    borderRadius: 25,
     borderColor: "#A09D9DFF",
     borderStyle: "solid",
     borderWidth: 1,
@@ -150,27 +207,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 16,
-    color: '#A09D9DFF', // Texto blanco
+    color: '#A09D9DFF',
   },
   passwordInput: {
-    flex: 1, // Hace que el input ocupe el mayor espacio posible
-    height: '100%', // El input ocupa el alto del contenedor
+    flex: 1,
+    height: '100%',
     fontSize: 16,
-    color: '#888888', // Color del texto del input
-    paddingRight: 10, // Espacio entre el texto y el icono
-    textAlign: 'center', // Centra el texto dentro del input
+    color: '#888888',
+    paddingRight: 10,
+    textAlign: 'center',
   },
   eyeIcon: {
-    paddingLeft: 5, // Espacio a la izquierda del icono
+    paddingLeft: 5,
   },
   gradientBackground: {
-    // Fondo transparente para que se vea el degradado
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
-  
   buttonInput: {
     width: '100%',
-    backgroundColor: 'transparent', // El verde característico de Pinterest
-    borderRadius: 25, // Muy redondeado (como una píldora)
+    backgroundColor: 'transparent',
+    borderRadius: 25,
     borderColor: "#A09D9DFF",
     borderStyle: "solid",
     borderWidth: 1,
@@ -180,56 +238,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 16,
-    color: '#A09D9DFF', // Texto blanco
+    color: '#A09D9DFF',
   },
   button: {
     width: '100%',
-    backgroundColor: '#09AC4DFF', // El verde característico de Pinterest
-    borderRadius: 25, // Muy redondeado (como una píldora)
+    backgroundColor: '#09AC4DFF',
+    borderRadius: 25,
     paddingVertical: 15,
     marginTop: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    
-    color: '#ffffff', // Texto blanco
+    color: '#ffffff',
     fontSize: 20,
     fontWeight: 'bold',
   },
   formCard: {
-    width: '100%', // O un ancho fijo, ej. 350
-    maxWidth: 400, // Para pantallas grandes
-    backgroundColor: 'transparent', // Fondo blanco para la tarjeta
-    borderRadius: 20, // Esquinas redondeadas
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'transparent',
+    borderRadius: 20,
     borderStyle: 'solid',
-    //borderWidth: 1,
     overflow: 'hidden',
-    padding: 30, // Espaciado interno
+    padding: 30,
     alignItems: 'center',
-    shadowColor: '#000', // Sombra
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
     borderColor: "#fff",
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    elevation: 8, // Sombra para Android
+    elevation: 8,
   },
   formCardGeneral: {
-    width: '100%', // O un ancho fijo, ej. 350
-    maxWidth: 400, // Para pantallas grandes
-    backgroundColor: 'transparent', // Fondo blanco para la tarjeta
-    borderRadius: 20, // Esquinas redondeadas
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'transparent',
+    borderRadius: 20,
     borderStyle: 'solid',
     borderWidth: 1,
     overflow: 'hidden',
-    padding: 30, // Espaciado interno
+    padding: 30,
     alignItems: 'center',
-    shadowColor: '#000', // Sombra
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
     borderColor: "#fff",
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    elevation: 8, // Sombra para Android
+    elevation: 8,
   },
   container: {
     flex: 1,
@@ -237,25 +293,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'transparent', // Fondo transparente para que se vea el degradado
+    backgroundColor: 'transparent',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 30,
-    color: '#ffffff', // Texto blanco
-  },
-  input: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#f8f8f8', // Un gris muy claro para el fondo del input
-    borderRadius: 10, // Esquinas más redondeadas
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#e0e0e0', // Borde suave
-    fontSize: 16,
-    color: '#333',
+    color: '#ffffff',
   },
   linksContainer: {
     marginTop: 25,
@@ -269,6 +313,14 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingHorizontal: 0,
     textAlign: 'center',
-    
   },
+  socialButtonsContainer: {
+    marginTop: 15,
+    width: '100%',
+    alignItems: 'center',
+  },
+  googleButton: {
+    width: '100%',
+    height: 48,
+  }
 });
