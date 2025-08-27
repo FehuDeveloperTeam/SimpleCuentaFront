@@ -22,7 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.fehudeveloperteam.cuentasimple",
-       "config": {
+      "config": {
         "googleSignIn": {
           "certificateHash": "A3:D2:C6:11:2B:97:23:D9:E6:43:2D:FE:B2:8E:5F:A9:F4:DE:64:24",
           "androidClientId": "479765324062-tks1ilonm3cuihjap24iv4uo01vqgm7j.apps.googleusercontent.com"
@@ -44,7 +44,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

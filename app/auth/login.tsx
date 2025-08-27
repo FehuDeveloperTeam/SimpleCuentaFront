@@ -185,6 +185,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   backgroundImage: {
+    color: '#000',
     flex: 1,
     width: '100%',
     height: '100%',
@@ -206,12 +207,14 @@ const styles = StyleSheet.create({
     marginTop: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: '#A09D9DFF',
   },
   passwordInput: {
     flex: 1,
     height: '100%',
+    fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: '#888888',
     paddingRight: 10,
@@ -233,10 +236,11 @@ const styles = StyleSheet.create({
     borderStyle: "solid",
     borderWidth: 1,
     paddingVertical: 16,
-    paddingHorizontal: 60,
+    paddingHorizontal: 20,
     marginTop: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: '#A09D9DFF',
   },
@@ -251,6 +255,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#ffffff',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -292,11 +297,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 20,
     alignItems: 'center',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
     padding: 20,
     backgroundColor: 'transparent',
   },
   title: {
     fontSize: 32,
+    fontFamily: 'Inter_600SemiBold',
     fontWeight: 'bold',
     marginBottom: 30,
     color: '#ffffff',
@@ -309,6 +317,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     color: '#fff',
+    fontFamily: 'Inter_400Regular',
     fontSize: 16,
     paddingVertical: 0,
     paddingHorizontal: 0,
