@@ -1,105 +1,93 @@
 // app/auth/login.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin'; // <-- NUEVA IMPORTACIÓN
+import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter } from 'expo-router'; // useRouter se mantiene para ir a registro
 import React, { useState } from 'react';
 import { Alert, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import api from '../../lib/api'; // <--- ¡RUTA AJUSTADA!
-
-// Configuración de Google Sign-In para Android e iOS
-// Esto debe ir en un lugar global, como tu archivo principal (ej. app/_layout.tsx)
-// Pero lo incluimos aquí para que el código sea autocontenido.
-GoogleSignin.configure({
-  webClientId: 'TU_ID_DE_CLIENTE_WEB_DEL_BACKEND', // Reemplaza con tu ID de cliente web
-  iosClientId: 'TU_ID_DE_CLIENTE_DE_IOS_DE_GOOGLE', // Reemplaza con tu ID de cliente de iOS
-});
+import { useAuth } from '../../context/AuthContext'; // <-- 1. IMPORTAMOS EL HOOK
+import api from '../../lib/api';
 
 export default function LoginScreen() {
+  const { signIn } = useAuth(); // <-- 2. OBTENEMOS LA FUNCIÓN signIn DEL CONTEXTO
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter(); // Inicializa el router de Expo
+  const router = useRouter();
 
-  // Lógica de inicio de sesión con email y contraseña
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Usuario o contraseña incorrectos, intenta nuevamente');
+      Alert.alert('Error', 'Por favor, ingresa tu correo y contraseña.');
       return;
     }
 
     setLoading(true);
     try {
       const response = await api.post('/api/auth/login', { email, password });
-      Alert.alert('¡Éxito!', response.data.message || 'Inicio de sesión exitoso.');
-      console.log('Token JWT:', response.data.token);
-      // TODO: Guardar el token de autenticación (ej. con AsyncStorage)
-      router.replace('/(tabs)');
+      
+      // <-- 3. USAMOS EL CONTEXTO PARA INICIAR SESIÓN
+      // La respuesta del backend debe incluir 'token' y 'user'
+      await signIn({ token: response.data.token, user: response.data.user });
+      
+      // Ya no necesitamos la alerta de éxito ni la redirección manual.
+      // El _layout se encargará de redirigir al cambiar el estado de autenticación.
+
     } catch (error) {
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const err = error as { response?: { data?: any }; message?: string };
-        console.error('Error al iniciar sesión:', err.response ? err.response.data : err.message);
-        Alert.alert(
-          'Error al iniciar sesión',
-          err.response?.data?.message || 'Ocurrió un error inesperado. Inténtalo de nuevo.'
-        );
-      } else {
-        console.error('Error al iniciar sesión:', String(error));
-        Alert.alert(
-          'Error al iniciar sesión',
-          'Ocurrió un error inesperado. Inténtalo de nuevo.'
-        );
-      }
+      // Tu manejo de errores existente es correcto
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      console.error('Error al iniciar sesión:', err.response ? err.response.data : err.message);
+      Alert.alert(
+        'Error al iniciar sesión',
+        err.response?.data?.message || 'Ocurrió un error inesperado. Inténtalo de nuevo.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // Lógica de inicio de sesión con Google
   const handleGoogleLogin = async () => {
+    setLoading(true);
     try {
-      // Intenta iniciar sesión con los servicios de Google
       await GoogleSignin.hasPlayServices();
-       const userInfo = await GoogleSignin.signIn();
-       const idToken = (userInfo as any).idToken;
+      const userInfo = await GoogleSignin.signIn();
+      let idToken: string | undefined = undefined;
+if ('idToken' in userInfo && typeof userInfo.idToken === 'string') {
+  idToken = userInfo.idToken;
+}
+
+if (!idToken) {
+  throw new Error('No se pudo obtener el idToken de Google.');
+}
+      //const idToken = userInfo.idToken;
       
       if (!idToken) {
-        throw new Error('idToken no se pudo obtener.');
+        throw new Error('No se pudo obtener el idToken de Google.');
       }
       
-      // Envía el idToken a tu backend para verificación y obtener tu token JWT
-      setLoading(true);
       const response = await api.post('/api/auth/google', { token: idToken });
       
-      const data = response.data;
-      console.log('Login exitoso con Google. Token del backend:', data.token);
-      Alert.alert('¡Éxito!', 'Inicio de sesión con Google exitoso.');
-      
-      // TODO: Guardar el token del backend
-      router.replace('/(tabs)');
-      
-    } catch (error) {
-      console.error('Error en Google Sign-In:', error);
+      // <-- 4. USAMOS EL CONTEXTO TAMBIÉN PARA EL LOGIN CON GOOGLE
+      await signIn({ token: response.data.token, user: response.data.user });
 
-      if (typeof error === 'object' && error !== null && 'code' in error) {
-    const err = error as { code?: string };
+    } catch (error) {
+      // Tu manejo de errores de Google es correcto
+      console.error('Error en Google Sign-In:', error);
+      const err = error as { code?: string };
       if (err.code === statusCodes.SIGN_IN_CANCELLED) {
-        Alert.alert('Login cancelado', 'El usuario canceló el proceso de inicio de sesión.');
+        // No mostramos alerta si el usuario cancela
       } else if (err.code === statusCodes.IN_PROGRESS) {
-        Alert.alert('En progreso', 'El inicio de sesión ya está en curso. Por favor, espera.');
-      } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Error', 'Google Play Services no está disponible en este dispositivo.');
+        Alert.alert('En progreso', 'El inicio de sesión ya está en curso.');
       } else {
-        Alert.alert('Error', 'Ocurrió un error inesperado al iniciar sesión con Google.');
+        Alert.alert('Error', 'Ocurrió un error al iniciar sesión con Google.');
       }
-    }
     } finally {
       setLoading(false);
     }
   };
 
+  // ... El resto de tu código JSX y estilos permanece exactamente igual
   return (
     <ImageBackground source={require('../../assets/imagesApp/background0.jpg')} style={styles.backgroundImage}>
       <LinearGradient
@@ -151,7 +139,6 @@ export default function LoginScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {/* Contenedor para el botón de Google */}
               <View style={styles.socialButtonsContainer}>
                 <GoogleSigninButton
                   style={styles.googleButton}
@@ -167,10 +154,10 @@ export default function LoginScreen() {
                   <Text style={styles.linkText}>¿No tienes cuenta?</Text>
                   <TouchableOpacity
                     style={styles.button}
-                    onPress={() => router.replace('/auth/register' as any)}
+                    onPress={() => router.replace('/auth/register')}
                     disabled={loading}>
                     <Text style={styles.buttonText}>
-                      {loading ? "Cargando..." : "Regístrate"}
+                      Regístrate
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -183,6 +170,7 @@ export default function LoginScreen() {
   );
 }
 
+// ... Tus estilos
 const styles = StyleSheet.create({
   backgroundImage: {
     color: '#000',
