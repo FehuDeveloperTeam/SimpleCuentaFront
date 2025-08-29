@@ -36,6 +36,8 @@ export default function RegisterScreen() {
       // Inicia sesión automáticamente después del registro exitoso
       await signIn({ token: response.data.token, user: response.data.user });
 
+      router.replace('/(tabs)');
+      
     } catch (error) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
       console.error('Error en el registro:', err.response ? err.response.data : err.message);

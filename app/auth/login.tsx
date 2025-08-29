@@ -35,7 +35,7 @@ export default function LoginScreen() {
       // <-- 3. USAMOS EL CONTEXTO PARA INICIAR SESIÓN
       // La respuesta del backend debe incluir 'token' y 'user'
       await signIn({ token: response.data.token, user: response.data.user });
-      
+      router.replace('/(tabs)');
       // Ya no necesitamos la alerta de éxito ni la redirección manual.
       // El _layout se encargará de redirigir al cambiar el estado de autenticación.
 
@@ -82,6 +82,8 @@ if (!idToken) {
       // <-- 4. USAMOS EL CONTEXTO TAMBIÉN PARA EL LOGIN CON GOOGLE
       await signIn({ token: response.data.token, user: response.data.user });
 
+      router.replace('/(tabs)');
+      
     } catch (error) {
       // Tu manejo de errores de Google es correcto
       console.error('Error en Google Sign-In:', error);

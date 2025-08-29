@@ -1,43 +1,55 @@
 // app/(tabs)/profile.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useAuth } from '../../context/AuthContext'; // Importamos nuestro hook
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react'; // Importa useState
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ConfirmModal } from '../../components/ui/ConfirmModal'; // 1. Importa el modal
+import { useAuth } from '../../context/AuthContext';
 
 export default function ProfileScreen() {
-  // Obtenemos los datos del usuario y la función signOut del contexto
   const { user, signOut } = useAuth();
+  const router = useRouter();
+  
+  // 2. Estado para controlar la visibilidad del modal
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Cerrar Sesión",
-      "¿Estás seguro de que quieres cerrar tu sesión?",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
-        { 
-          text: "Sí, cerrar sesión", 
-          onPress: () => signOut() 
-        }
-      ]
-    );
+  // 3. Esta función ahora solo abre el modal
+  const handleLogoutPress = () => {
+    setIsModalVisible(true);
+  };
+
+  // 4. Esta es la lógica que se ejecutará si el usuario confirma
+  const confirmLogout = async () => {
+    setIsModalVisible(false); // Cierra el modal primero
+    await signOut();
+    router.replace('/auth/login');
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Mi Perfil</Text>
-      {/* Mostramos un saludo con el nombre del usuario guardado en el contexto */}
-      <Text style={styles.welcomeText}>¡Hola, {user?.name || 'Usuario'}!</Text>
-      <Text style={styles.emailText}>{user?.email}</Text>
+    <>
+      <View style={styles.container}>
+        <Text style={styles.title}>Mi Perfil</Text>
+        <Text style={styles.welcomeText}>¡Hola, {user?.name || 'Usuario'}!</Text>
+        <Text style={styles.emailText}>{user?.email}</Text>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogoutPress}>
+          <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 5. Renderiza el modal y pásale las propiedades */}
+      <ConfirmModal
+        visible={isModalVisible}
+        title="Cerrar Sesión"
+        message="¿Estás seguro de que quieres cerrar tu sesión?"
+        onCancel={() => setIsModalVisible(false)}
+        onConfirm={confirmLogout}
+        confirmText="Sí, cerrar"
+      />
+    </>
   );
 }
 
+// ... (tus estilos permanecen igual)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -61,7 +73,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logoutButton: {
-    backgroundColor: '#e74c3c', // Un color rojo para la acción de cerrar sesión
+    backgroundColor: '#e74c3c',
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 30,

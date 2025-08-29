@@ -1,67 +1,82 @@
 // context/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios'; // Asegúrate de que tu instancia de axios esté configurada
+import axios from 'axios';
+import React, { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
 
-// --- 1. Definir la forma de los datos del contexto ---
-// Lo que el contexto proveerá
-interface AuthData {
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean; // Para manejar el estado de carga inicial
-  user: User | null; // Define una interfaz de usuario si la tienes
-  signIn: (data: { token: string; user: User }) => Promise<void>;
-  signOut: () => Promise<void>;
+// --- 1. Definición de Tipos ---
+
+// Interface para el objeto de usuario que llega desde tu API de backend
+interface BackendUser {
+  _id: string;
+  name: string;
+  email: string;
 }
 
-// Un ejemplo de la interfaz de usuario
+// Interface para el objeto de usuario que usaremos dentro del frontend
 interface User {
   id: string;
   name: string;
   email: string;
 }
 
-// --- 2. Crear el Contexto ---
-// Se inicializa con un valor por defecto (undefined en este caso)
+// Interface que define la forma de los datos que proveerá el contexto
+interface AuthData {
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean; // Se añadió isLoading que faltaba
+  user: User | null;
+  // Se corrigió 'user' para que espere el tipo que viene del backend
+  signIn: (data: { token: string; user: BackendUser }) => Promise<void>; 
+  signOut: () => Promise<void>;
+}
+
+// --- 2. Creación del Contexto ---
 const AuthContext = createContext<AuthData | undefined>(undefined);
 
-// --- 3. Crear el Proveedor (Provider) ---
-// Este es el componente que envolverá tu aplicación
-export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
+// --- 3. Creación del Proveedor (Provider) ---
+export const AuthProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Para el estado de carga inicial
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Efecto para cargar el token desde AsyncStorage al iniciar la app
+  // Efecto para cargar los datos guardados al iniciar la app
   useEffect(() => {
-    const loadToken = async () => {
+    const loadStoredData = async () => {
       try {
         const storedToken = await AsyncStorage.getItem('user_token');
-        if (storedToken) {
+        const storedUser = await AsyncStorage.getItem('user_data'); // También cargamos el usuario
+        
+        if (storedToken && storedUser) {
           setToken(storedToken);
-          // Opcional: Podrías querer validar el token con tu API aquí
-          // y obtener los datos del usuario.
-          // Por ahora, solo configuramos el header de axios.
+          setUser(JSON.parse(storedUser)); // Usamos los datos del usuario guardados
           axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         }
       } catch (e) {
-        console.error('Failed to load token from storage', e);
+        console.error('Failed to load data from storage', e);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadToken();
+    loadStoredData();
   }, []);
 
   // Función para iniciar sesión
-  const signIn = async (data: { token: string; user: User }) => {
+  const signIn = async (data: { token: string; user: BackendUser }) => {
+    // Mapeamos el usuario del backend al formato del frontend
+    const formattedUser: User = {
+      id: data.user._id,
+      name: data.user.name,
+      email: data.user.email,
+    };
+    
     setToken(data.token);
-    setUser(data.user);
+    setUser(formattedUser);
     axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+    
+    // Guardamos tanto el token como los datos del usuario formateado
     await AsyncStorage.setItem('user_token', data.token);
-    // Podrías querer guardar también los datos del usuario
-    // await AsyncStorage.setItem('user_data', JSON.stringify(data.user));
+    await AsyncStorage.setItem('user_data', JSON.stringify(formattedUser));
   };
 
   // Función para cerrar sesión
@@ -70,13 +85,11 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
     await AsyncStorage.removeItem('user_token');
-    // await AsyncStorage.removeItem('user_data');
+    await AsyncStorage.removeItem('user_data'); // También borramos los datos del usuario
   };
   
-  // No renderizar nada hasta que se haya comprobado el token
   if (isLoading) {
-    // Aquí podrías retornar una pantalla de carga (Splash Screen)
-    return null; 
+    return null; // Muestra una pantalla en blanco (o un spinner) mientras carga
   }
 
   return (
@@ -86,8 +99,7 @@ export const AuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
   );
 };
 
-// --- 4. Crear un Hook personalizado ---
-// Facilita el uso del contexto en otros componentes
+// --- 4. Creación del Hook Personalizado ---
 export const useAuth = (): AuthData => {
   const context = useContext(AuthContext);
   if (!context) {
