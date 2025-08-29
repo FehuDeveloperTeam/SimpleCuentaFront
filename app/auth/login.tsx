@@ -27,6 +27,11 @@ export default function LoginScreen() {
     try {
       const response = await api.post('/api/auth/login', { email, password });
       
+       // --- INICIO DE CAMBIO (ESPÍA) ---
+    // 1. Mostraremos en la consola la respuesta EXACTA que nos da el backend.
+    console.log('✅ Respuesta exitosa del backend:', JSON.stringify(response.data, null, 2));
+    // --- FIN DE CAMBIO (ESPÍA) ---
+
       // <-- 3. USAMOS EL CONTEXTO PARA INICIAR SESIÓN
       // La respuesta del backend debe incluir 'token' y 'user'
       await signIn({ token: response.data.token, user: response.data.user });
@@ -37,6 +42,12 @@ export default function LoginScreen() {
     } catch (error) {
       // Tu manejo de errores existente es correcto
       const err = error as { response?: { data?: { message?: string } }; message?: string };
+
+// --- INICIO DE CAMBIO (ESPÍA) ---
+    // 2. Si hay un error, también mostraremos la respuesta completa del backend.
+    console.error('❌ Error en la respuesta del backend:', JSON.stringify(err.response?.data, null, 2));
+    // --- FIN DE CAMBIO (ESPÍA) ---
+
       console.error('Error al iniciar sesión:', err.response ? err.response.data : err.message);
       Alert.alert(
         'Error al iniciar sesión',
